@@ -1,0 +1,95 @@
+﻿@page "/proyecto/agregar"
+@inject HttpClient httpClient
+@inject NavigationManager navigationManager
+@inject ILocalStorageService _localStorageService
+
+<MudText Typo="Typo.h2" Class="ml">Nuevo Proyecto</MudText>
+
+<MudGrid>
+    <MudItem xs="12" sm="7">
+        <MudPaper Class="pa-4">
+            <EditForm Model="proyecto" OnValidSubmit="OnValidSubmit">
+                <DataAnnotationsValidator />
+                <MudCard>
+                    <MudCardContent>
+                        <MudTextField Label="Título" @bind-Value="proyecto.Titulo" For="@(() => proyecto.Titulo)" />
+                        <MudTextField Label="Descripcion" @bind-Value="proyecto.Descripcion" For="@(() => proyecto.Descripcion)" />
+                        <MudDatePicker Label="Fecha de Inicio" @bind-Date="fechaInicio" />
+                        <MudDatePicker Label="Fecha de Fin" @bind-Date="fechaFin" />
+                        <MudSelect Variant="Variant.Outlined" Label="Categoría" AnchorOrigin="Origin.BottomCenter"
+                                   @bind-Value="categoriaSeleccionada">
+                            @foreach (var item in categorias)
+                            {
+                                <MudSelectItem Value="@item.Id">@item.Nombre</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudButton Href="@($"/proyecto/index")" Variant="Variant.Filled" Color="Color.Info"
+                                   Class="text-center">Regresar</MudButton>
+                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" 
+                                    Class="ml-auto">Guardar</MudButton>
+                    </MudCardActions>
+                </MudCard>
+            </EditForm>
+            @if (showLeaveAlert)
+            {
+                <MudAlert Severity="Severity.Error" ContentAlignment="HorizontalAlignment.Center" ShowCloseIcon="true" CloseIconClicked="(() => CloseMe(true))">No se pudo guardar.</MudAlert>
+            }
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+    bool success;
+    private IEnumerable<Categoria> categorias = new List<Categoria>();
+    private bool showLeaveAlert = false;
+    Proyecto proyecto = new Proyecto();
+    private DateTime? fechaInicio = DateTime.Today;
+    private DateTime? fechaFin = DateTime.Today;
+    private int categoriaSeleccionada;
+
+    protected override async Task OnInitializedAsync()
+    {
+        httpClient.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", await _localStorageService.GetItemAsync<string>("token"));
+        await getCategorias();
+        categoriaSeleccionada = categorias.FirstOrDefault().Id;
+    }
+
+    private async Task OnValidSubmit(EditContext context)
+    {
+        await save();
+        success = true;
+        StateHasChanged();
+    }
+
+    private async Task save()
+    {
+        proyecto.FechaInicio = fechaInicio?.ToString("dd-MM-yyyy") ?? string.Empty;
+        proyecto.FechaFin = fechaFin?.ToString("dd-MM-yyyy") ?? string.Empty;
+        proyecto.CategoriaId = categoriaSeleccionada;
+        var httpResponse = await httpClient.PostAsJsonAsync<Proyecto>("proyectos", proyecto);
+
+        if (!(httpResponse.StatusCode == System.Net.HttpStatusCode.OK))
+        {
+            showLeaveAlert = true;
+        }
+        else
+        {
+            navigationManager.NavigateTo("proyecto/index");
+        }
+    }
+
+    private void CloseMe(bool value)
+    {
+        showLeaveAlert = false;
+    }
+
+    private async Task getCategorias()
+    {
+        //var httpResponse = await httpClient.GetStringAsync("categorias"); // .NET
+        var httpResponse = await httpClient.GetStringAsync("categorias/lista"); // Java
+        categorias = JsonSerializer.Deserialize<IEnumerable<Categoria>>(httpResponse, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+    }
+}

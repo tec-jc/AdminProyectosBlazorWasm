@@ -1,0 +1,55 @@
+﻿@page "/proyecto/detalle/{id:int}"
+
+@inject HttpClient httpClient
+@inject NavigationManager navigationManager
+@inject ILocalStorageService _localStorageService
+
+<MudText Typo="Typo.h2" Class="ml">Detalles del proyecto</MudText>
+<MudGrid>
+    <MudItem xs="12" sm="7">
+        <MudPaper Class="pa-4">
+            <EditForm Model="proyecto">
+                <DataAnnotationsValidator />
+                <MudCard>
+                    <MudCardContent>
+                        <MudTextField Label="Título" @bind-Value="proyecto.Titulo" For="@(() => proyecto.Titulo)" />
+                        <MudTextField Label="Descripcion" @bind-Value="proyecto.Descripcion" For="@(() => proyecto.Descripcion)" />
+                        <MudDatePicker Label="Fecha de Inicio" @bind-Date="fechaInicio" />
+                        <MudDatePicker Label="Fecha de Fin" @bind-Date="fechaFin" />
+                        <MudTextField Label="Categoría" @bind-Value="categoria.Nombre" For="@(() => categoria.Nombre)"></MudTextField>
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudButton Href="@($"/proyecto/index")" Variant="Variant.Filled" Color="Color.Info"
+                                   Class="text-center">Regresar</MudButton>
+                    </MudCardActions>
+                </MudCard>
+            </EditForm>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+
+@code {
+    [Parameter]
+    public int id { get; set; }
+    private Proyecto proyecto = new Proyecto();
+    private Categoria categoria = new Categoria();
+    private DateTime? fechaInicio = DateTime.Today;
+    private DateTime? fechaFin = DateTime.Today;
+
+    protected override async Task OnInitializedAsync()
+    {
+        httpClient.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", await _localStorageService.GetItemAsync<string>("token"));
+        await getProyecto();
+        fechaInicio = Convert.ToDateTime(proyecto.FechaInicio);
+        fechaFin = Convert.ToDateTime(proyecto.FechaFin);
+        categoria = proyecto.Categoria;
+    }
+
+    private async Task getProyecto()
+    {
+        var resp = await httpClient.GetStringAsync("proyectos/" + id);
+        proyecto = JsonSerializer.Deserialize<Proyecto>(resp, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+    }
+}

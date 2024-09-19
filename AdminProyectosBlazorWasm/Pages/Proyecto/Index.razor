@@ -1,0 +1,76 @@
+﻿@page "/proyecto/index"
+@inject HttpClient httpClient
+@inject NavigationManager navigationManager
+@inject ILocalStorageService _localStorageService
+
+<MudText Typo="Typo.h2" Class="ml">Proyectos</MudText>
+
+<MudTable Items="@proyectos" Hover="true" Bordered="true" Striped="true">
+    <ToolBarContent>
+        <MudFab Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="goAdd" />
+        <MudSpacer />
+        @* <MudTextField @bind-Value="searchText" OnKeyUp="searchByName" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField> *@
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>Id</MudTh>
+        <MudTh>Título</MudTh>
+        <MudTh>FechaInicio</MudTh>
+        <MudTh>FechaFin</MudTh>
+        <MudTh>Categoría</MudTh>
+        <MudTh>Acciones</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Id">@context.Id</MudTd>
+        <MudTd DataLabel="Título">@context.Titulo</MudTd>
+        <MudTd DataLabel="Fecha Inicio">@context.FechaInicio</MudTd>
+        <MudTd DataLabel="Fecha Fin">@context.FechaFin</MudTd>
+        <MudTd DataLabel="Categoría">@context.Categoria.Nombre</MudTd>
+        <MudTd>
+            <MudButton Href="@($"/proyecto/detalle/{context.Id}")" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Info"
+                       Class="text-center">Detalle</MudButton>
+            <MudButton Href="@($"/proyecto/editar/{context.Id}")" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Tertiary"
+                       Class="text-center">Editar</MudButton>
+            <MudButton Href="@($"/proyecto/eliminar/{context.Id}")" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Warning"
+                       Class="text-center">Eliminar</MudButton>
+        </MudTd>
+    </RowTemplate>
+    <PagerContent>
+        <MudTablePager />
+    </PagerContent>
+</MudTable>
+
+@code {
+    private IEnumerable<Proyecto> proyectos = new List<Proyecto>();
+    private string searchText = "";
+    private Proyecto proyecto = new Proyecto();
+
+    protected override async Task OnInitializedAsync()
+    {
+        httpClient.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", await _localStorageService.GetItemAsync<string>("token"));
+        await getAll();
+    }
+
+    private async Task getAll()
+    {
+        //var httpResponse = await httpClient.GetStringAsync("proyectos"); // .NET
+        var httpResponse = await httpClient.GetStringAsync("proyectos/lista"); // Java
+        proyectos = JsonSerializer.Deserialize<IEnumerable<Proyecto>>(httpResponse, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+    }
+
+    private void goAdd()
+    {
+        navigationManager.NavigateTo("proyecto/agregar");
+    }
+
+    // .NET
+    // private async Task searchByName(KeyboardEventArgs e)
+    // {
+    //     if (e.Key == "Enter")
+    //     {
+    //         var resp = await httpClient.PostAsJsonAsync("municipio/buscar", new { nombre = searchText });
+    //         string respString = await resp.Content.ReadAsStringAsync();
+    //         municipios = JsonSerializer.Deserialize<IEnumerable<Municipio>>(respString, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+    //     }
+    // }
+}

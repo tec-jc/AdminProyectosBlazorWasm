@@ -1,0 +1,99 @@
+﻿@page "/proyecto/editar/{id:int}"
+
+@inject HttpClient httpClient
+@inject NavigationManager navigationManager
+@inject ILocalStorageService _localStorageService
+
+<MudText Typo="Typo.h2" Class="ml">Editar Proyecto</MudText>
+<MudGrid>
+    <MudItem xs="12" sm="7">
+        <MudPaper Class="pa-4">
+            <EditForm Model="proyecto" OnValidSubmit="OnValidSubmit">
+                <DataAnnotationsValidator />
+                <MudCard>
+                    <MudCardContent>
+                        <MudTextField Label="Título" @bind-Value="proyecto.Titulo" For="@(() => proyecto.Titulo)" />
+                        <MudTextField Label="Descripcion" @bind-Value="proyecto.Descripcion" For="@(() => proyecto.Descripcion)" />
+                        <MudDatePicker Label="Fecha de Inicio" @bind-Date="fechaInicio" />
+                        <MudDatePicker Label="Fecha de Fin" @bind-Date="fechaFin" />
+                        <MudSelect Variant="Variant.Outlined" Label="Categoría" AnchorOrigin="Origin.BottomCenter"
+                                   @bind-Value="categoriaSeleccionada">
+                            @foreach (var item in categorias)
+                            {
+                                <MudSelectItem Value="@item.Id">@item.Nombre</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudButton Href="@($"/proyecto/index")" Variant="Variant.Filled" Color="Color.Info"
+                                   Class="text-center">Regresar</MudButton>
+                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" 
+                                    Class="ml-auto">Guardar cambios</MudButton>
+                    </MudCardActions>
+                </MudCard>
+            </EditForm>
+            @if (showLeaveAlert)
+            {
+                <MudAlert Severity="Severity.Error" ContentAlignment="HorizontalAlignment.Center" ShowCloseIcon="true" CloseIconClicked="(() => CloseMe(true))">Ocurrió un problema.</MudAlert>
+            }
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+    [Parameter]
+    public int id { get; set; }
+
+    private IEnumerable<Categoria> categorias = new List<Categoria>();
+    private int categoriaSeleccionada;
+    private bool showLeaveAlert = false;
+    Proyecto proyecto = new Proyecto();
+    private DateTime? fechaInicio = DateTime.Today;
+    private DateTime? fechaFin = DateTime.Today;
+
+    protected override async Task OnInitializedAsync()
+    {
+        httpClient.DefaultRequestHeaders.Authorization =
+        new AuthenticationHeaderValue("Bearer", await _localStorageService.GetItemAsync<string>("token"));
+        await getCategorias();
+
+        var resp = await httpClient.GetStringAsync("proyectos/" + id);
+        proyecto = JsonSerializer.Deserialize<Proyecto>(resp, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        fechaInicio = Convert.ToDateTime(proyecto.FechaInicio);
+        fechaFin = Convert.ToDateTime(proyecto.FechaFin);
+        categoriaSeleccionada = proyecto.Categoria.Id;
+    }
+
+    private async Task OnValidSubmit(EditContext context)
+    {
+        await saveChanges();
+    }
+
+    private async Task saveChanges()
+    {
+        proyecto.FechaInicio = fechaInicio?.ToString("dd-MM-yyyy") ?? string.Empty;
+        proyecto.FechaFin = fechaFin?.ToString("dd-MM-yyyy") ?? string.Empty;
+        proyecto.CategoriaId = categoriaSeleccionada;
+        var httpResponse = await httpClient.PutAsJsonAsync<Proyecto>("proyectos/" + proyecto.Id, proyecto);
+
+        if (!(httpResponse.StatusCode == System.Net.HttpStatusCode.OK))
+        {
+            showLeaveAlert = true;
+        }
+        else
+        {
+            navigationManager.NavigateTo("proyecto/index");
+        }
+    }
+
+    private void CloseMe(bool value)
+    {
+        showLeaveAlert = false;
+    }
+
+    private async Task getCategorias()
+    {
+        var httpResponse = await httpClient.GetStringAsync("categorias/lista");
+        categorias = JsonSerializer.Deserialize<IEnumerable<Categoria>>(httpResponse, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+    }
+}
